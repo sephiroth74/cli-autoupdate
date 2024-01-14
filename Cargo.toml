@@ -1,6 +1,6 @@
 [package]
 name = "cli-autoupdate"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2021"
 license = "MIT"
 authors = ["Alessandro Crugnola <alessandro.crugnola@swisscom.com>"]

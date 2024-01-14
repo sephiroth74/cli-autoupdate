@@ -9,7 +9,6 @@ use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use semver::Version;
 use serde::{Deserialize, Deserializer};
 use tar::Archive;
-use tracing::{debug, trace};
 use url::Url;
 
 use crate::{Config, Error, Registry, RemoteVersion};
@@ -19,7 +18,7 @@ pub(crate) async fn fetch_remote_version<C: Config, R: Registry>(config: &C, reg
 		.get_base_url()
 		.join(registry.get_update_path(config.into()).as_str())?;
 
-	trace!("url: {}", url);
+	println!("url: {}", url);
 
 	reqwest::get(url)
 		.await?
@@ -29,7 +28,7 @@ pub(crate) async fn fetch_remote_version<C: Config, R: Registry>(config: &C, reg
 }
 
 pub async fn verify_file(src: &PathBuf, required_size: u64, required_hash: String) -> crate::Result<()> {
-	debug!("Verifying file integrity..");
+	println!("Verifying file integrity..");
 	let file_size = src.as_path().metadata()?.len();
 
 	if required_size != file_size {
@@ -48,7 +47,7 @@ pub async fn verify_file(src: &PathBuf, required_size: u64, required_hash: Strin
 
 pub async fn extract(src: &PathBuf, dst: &PathBuf) -> crate::Result<()> {
 	let src_filename = src.file_name().ok_or(std::io::Error::from(ErrorKind::NotFound))?;
-	debug!("Decompressing {:?} → {:?}", src_filename, dst);
+	println!("Decompressing {:?} → {:?}", src_filename, dst);
 	let tar_gz = File::open(src)?;
 	let tar = GzDecoder::new(tar_gz);
 	let mut archive = Archive::new(tar);
@@ -105,7 +104,7 @@ pub async fn download_file(
 		pb.finish();
 	}
 
-	debug!("Downloaded {} to {:?}", url, path);
+	println!("Downloaded {} to {:?}", url, path);
 	return Ok(());
 }
 
