@@ -30,6 +30,12 @@ pub enum Error {
 
 	#[error("Failed to get content length from '{0}'")]
 	InvalidContentLengthError(String),
+
+	#[error("File integrity mismatch. Expected size {0}, found {1}")]
+	InvalidFileSize(u64, u64),
+
+	#[error("File checksum failed")]
+	InvalidFileChecksum,
 }
 
 pub trait Registry {
