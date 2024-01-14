@@ -80,6 +80,7 @@ pub async fn update_self<C: Config, R: Registry>(
 		let client = reqwest::ClientBuilder::default().build().unwrap();
 
 		let _ = impls::download_file(&client, &remote_path, &target_path, multi_progress, progress_style).await?;
+		let _ = impls::verify_file(&target_path, remote_version.size as u64, remote_version.checksum.clone()).await?;
 
 		let bin_name = std::env::current_exe().or(Err(Error::IoError(std::io::Error::from(ErrorKind::NotFound))))?;
 		let bin_name_path = bin_name.parent().unwrap_or(Path::new("/")).to_path_buf();

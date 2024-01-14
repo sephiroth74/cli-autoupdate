@@ -28,6 +28,16 @@ pub(crate) async fn fetch_remote_version<C: Config, R: Registry>(config: &C, reg
 		.map_err(|err| Error::ReqwestError(err))
 }
 
+pub async fn verify_file(src: &PathBuf, required_size: u64, required_hash: String) -> crate::Result<()> {
+	debug!("Verifying file integrity..");
+	let file_size = src.as_path().metadata()?.len();
+	assert_eq!(required_size, file_size);
+	let bytes = std::fs::read(src)?;
+	let file_hash = sha256::digest(&bytes);
+	assert_eq!(required_hash, file_hash);
+	Ok(())
+}
+
 pub async fn extract(src: &PathBuf, dst: &PathBuf) -> crate::Result<()> {
 	let src_filename = src.file_name().ok_or(std::io::Error::from(ErrorKind::NotFound))?;
 	debug!("Decompressing {:?} → {:?}", src_filename, dst);
