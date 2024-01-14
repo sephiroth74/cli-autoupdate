@@ -3,7 +3,9 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
+#[cfg(feature = "progress")]
 use indicatif::style::TemplateError;
+#[cfg(feature = "progress")]
 use indicatif::{MultiProgress, ProgressStyle};
 use reqwest::Url;
 use semver::Version;
@@ -25,6 +27,7 @@ pub enum Error {
 	#[error(transparent)]
 	IoError(#[from] std::io::Error),
 
+	#[cfg(feature = "progress")]
 	#[error(transparent)]
 	TemplateError(#[from] TemplateError),
 
@@ -38,40 +41,120 @@ pub enum Error {
 	InvalidFileChecksum,
 }
 
+///
+/// This trait is responsible to gives the base url for and the final path
+/// of the update json package description
+///
 pub trait Registry {
+	/// base url of the repository. This is also used together with the `RemoteVersion::path`
+	/// to create the final download url.
 	fn get_base_url(&self) -> Url;
 
+	/// This is the relative update json path, according to the configuration path.
 	fn get_update_path<C: Config>(&self, config: &C) -> String;
 }
 
+/// Configuration implementation for the current package
+///
+/// Eg:
+/// ```rust
+///     use cli_autoupdate::Config;
+///    	use semver::Version;
+///     struct MyConfig;
+///
+///    	impl Config for MyConfig {
+/// 		fn version(&self) -> Version {
+/// 			let version_str = std::env::var("CARGO_PKG_VERSION").unwrap();
+/// 			Version::parse(version_str.as_str()).unwrap()
+/// 		}
+///
+///     fn target(&self) -> String {
+///         let target = std::env::var("TARGET").unwrap_or("aarch64-apple-darwin".to_string());
+///         format!("{}", target)
+///     }
+/// }
+/// ```
 pub trait Config {
-	fn version(&self) -> Version;
+	/// Should return the current package version
+	fn version(&self) -> Version {
+		Version::parse(std::env::var("CARGO_PKG_VERSION").unwrap().as_str()).unwrap()
+	}
+
+	/// Returns the package specific path, used by the registry
 	fn target(&self) -> String;
 }
 
+/// Deserialized object of the remote json file, used to check for updates
+/// Example:
+///
+/// ```json
+/// 	{
+/// 		"version": "2.0.0",
+/// 		"datetime": "2024-01-14T14:40:43+0100",
+/// 		"checksum": "726b934c8263868090490cf626b25770bbbbc98900689af512eddf9c33e9f785",
+/// 		"size": 5538631,
+/// 		"path": "./aarch64-apple-darwin/2.0.0/my_binary.tgz"
+/// 	}
+///    ```
+///
 #[derive(Debug, serde::Deserialize)]
 pub struct RemoteVersion {
+	/// version of the remote update file
 	#[serde(deserialize_with = "impls::value_to_version")]
 	pub version: Version,
+	/// the SHA-256 checksum of the file "path"
 	pub checksum: String,
+	/// the size in bytes of the file "path"
 	pub size: usize,
+	/// update path, relative to the repository base url (Repository::get_base_url)
 	pub path: String,
+	/// file published datetime
 	pub datetime: DateTime<Utc>,
 }
 
 pub type Result<T> = std::result::Result<T, crate::Error>;
 
+/// Check if there's a new version available
+/// Example:
+/// ```rust
+///
+/// 	use cli_autoupdate::check_version;
+///    	struct LabConfig;
+/// 	struct LabRegistry;
+///
+/// 	#[tokio::main]
+/// 	async fn main() {
+/// 		let config = LabConfig;
+///    		let registry = LabRegistry;
+///    		let (has_update, version) = check_version(&config, &registry).await.unwrap();
+///    		if has_update {
+///    			let bin_name = console::style("binary_name").cyan().italic().bold();
+///    			let this_version = config.version();
+///    			let other_version = console::style(version.version).green();
+///    			let update_url = registry.get_base_url().join(version.path.as_str()).unwrap();
+///
+///    			println!(
+///    				"A new release of {} is available: {} → {}",
+///    				bin_name, this_version, other_version
+///  			);
+///    			println!("Released on {}", version.datetime);
+///    			println!("{}", console::style(update_url).yellow());
+/// 		}
+///    	}
+/// ```
 pub async fn check_version<C: Config, R: Registry>(config: &C, registry: &R) -> Result<(bool, RemoteVersion)> {
 	impls::fetch_remote_version(config, registry)
 		.await
 		.and_then(|r| Ok((r.version > config.version(), r)))
 }
 
+///    Check for updates and auto-update the current binary, if a new version is available
+///
 pub async fn update_self<C: Config, R: Registry>(
 	config: &C,
 	registry: &R,
-	multi_progress: Option<MultiProgress>,
-	progress_style: Option<ProgressStyle>,
+	#[cfg(feature = "progress")] multi_progress: Option<MultiProgress>,
+	#[cfg(feature = "progress")] progress_style: Option<ProgressStyle>,
 ) -> Result<()> {
 	let result = check_version(config, registry).await?;
 	let remote_version = result.1;
@@ -85,7 +168,12 @@ pub async fn update_self<C: Config, R: Registry>(
 		let remote_path = registry.get_base_url().join(&remote_path.as_str())?;
 		let client = reqwest::ClientBuilder::default().build().unwrap();
 
+		#[cfg(feature = "progress")]
 		let _ = impls::download_file(&client, &remote_path, &target_path, multi_progress, progress_style).await?;
+
+		#[cfg(not(feature = "progress"))]
+		let _ = impls::download_file(&client, &remote_path, &target_path).await?;
+
 		let _ = impls::verify_file(&target_path, remote_version.size as u64, remote_version.checksum.clone()).await?;
 
 		let bin_name = std::env::current_exe().or(Err(Error::IoError(std::io::Error::from(ErrorKind::NotFound))))?;
@@ -99,6 +187,7 @@ pub async fn update_self<C: Config, R: Registry>(
 #[cfg(test)]
 mod tests {
 	use console::Style;
+	#[cfg(feature = "progress")]
 	use indicatif::{MultiProgress, ProgressStyle};
 	use reqwest::Url;
 	use semver::Version;
@@ -165,13 +254,19 @@ mod tests {
 		let config = LabConfig;
 		let registry = LabRegistry;
 
+		#[cfg(feature = "progress")]
 		let progress_style =
 			ProgressStyle::with_template("{prefix:.green.bold} [{bar:40.cyan/blue.bold}] {percent:>5}% [ETA {eta}] {msg} ")
 				.unwrap()
 				.progress_chars("=> ");
+		#[cfg(feature = "progress")]
 		let multi_progress = MultiProgress::new();
 
+		#[cfg(feature = "progress")]
 		let result = update_self(&config, &registry, Some(multi_progress), Some(progress_style)).await;
+
+		#[cfg(not(feature = "progress"))]
+		let result = update_self(&config, &registry).await;
 
 		match result {
 			Ok(_) => {}

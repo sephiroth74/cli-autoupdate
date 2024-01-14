@@ -1,6 +1,6 @@
 [package]
 name = "cli-autoupdate"
-version = "0.0.3"
+version = "0.0.4"
 edition = "2021"
 license = "MIT"
 authors = ["Alessandro Crugnola <alessandro.crugnola@swisscom.com>"]
@@ -9,9 +9,12 @@ description = "Simple autoupdate library for checking/update binaries"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = []
+progress = ["dep:indicatif"]
+
 [dependencies]
 chrono = { version = "0.4.31", features = ["serde"] }
-console = "0.15.8"
 reqwest = { version = "0.11.23", features = ["json", "stream"] }
 semver = "1.0.21"
 serde = { version = "1.0.195", features = ["std", "derive"] }
@@ -20,14 +23,15 @@ thiserror = "1.0.56"
 tokio = { version = "1.35.1", features = ["full"] }
 url = "2.5.0"
 tracing = "0.1.40"
-indicatif = "0.17.7"
 futures-util = "0.3.30"
 flate2 = "1.0.28"
 tar = "0.4.40"
 sha256 = "1.5.0"
-
+indicatif = { version = "0.17.7", optional = true }
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 logging-subscriber = "0.1.1"
 tokio-test = "0.4.3"
+console = "0.15.8"
+indicatif = "0.17.7"

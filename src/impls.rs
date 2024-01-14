@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use flate2::read::GzDecoder;
 use futures_util::stream::StreamExt;
+#[cfg(feature = "progress")]
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use semver::Version;
 use serde::{Deserialize, Deserializer};
@@ -58,11 +59,16 @@ pub async fn download_file(
 	client: &reqwest::Client,
 	url: &Url,
 	path: &PathBuf,
-	multi_progress: Option<MultiProgress>,
-	progress_style: Option<ProgressStyle>,
+	#[cfg(feature = "progress")] multi_progress: Option<MultiProgress>,
+	#[cfg(feature = "progress")] progress_style: Option<ProgressStyle>,
 ) -> crate::Result<()> {
-	// Reqwest setup
-	let filename = url.path_segments().unwrap().last().unwrap().to_string();
+	#[cfg(feature = "progress")]
+	let filename = url
+		.path_segments()
+		.ok_or(Err(std::io::Error::from(ErrorKind::NotFound)))?
+		.last()
+		.ok_or(Err(std::io::Error::from(ErrorKind::NotFound)))
+		.to_string();
 	let res = client.get(url.to_string().as_str()).send().await?;
 	let total_size = res
 		.content_length()
@@ -70,6 +76,7 @@ pub async fn download_file(
 
 	// Indicatif setup
 
+	#[cfg(feature = "progress")]
 	let pb = if let Some(multi_progress) = multi_progress {
 		let pb = multi_progress.add(ProgressBar::new(total_size));
 		if let Some(style) = progress_style {
@@ -95,11 +102,13 @@ pub async fn download_file(
 		let new = min(downloaded + (chunk.len() as u64), total_size);
 		downloaded = new;
 
+		#[cfg(feature = "progress")]
 		if let Some(pb) = &pb {
 			pb.set_position(new);
 		}
 	}
 
+	#[cfg(feature = "progress")]
 	if let Some(pb) = &pb {
 		pb.finish();
 	}
