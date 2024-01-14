@@ -65,14 +65,14 @@ pub async fn download_file(
 	#[cfg(feature = "progress")]
 	let filename = url
 		.path_segments()
-		.ok_or(Err(std::io::Error::from(ErrorKind::NotFound)))?
+		.ok_or(Error::IoError(std::io::Error::from(ErrorKind::NotFound)))?
 		.last()
-		.ok_or(Err(std::io::Error::from(ErrorKind::NotFound)))
+		.ok_or(Error::IoError(std::io::Error::from(ErrorKind::NotFound)))?
 		.to_string();
 	let res = client.get(url.to_string().as_str()).send().await?;
 	let total_size = res
 		.content_length()
-		.ok_or(crate::Error::InvalidContentLengthError(url.to_string()))?;
+		.ok_or(Error::InvalidContentLengthError(url.to_string()))?;
 
 	// Indicatif setup
 
