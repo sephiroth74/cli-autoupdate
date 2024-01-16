@@ -4,9 +4,9 @@ use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 #[cfg(feature = "progress")]
-use indicatif::style::TemplateError;
-#[cfg(feature = "progress")]
 use indicatif::{MultiProgress, ProgressStyle};
+#[cfg(feature = "progress")]
+use indicatif::style::TemplateError;
 use reqwest::Url;
 use semver::Version;
 use thiserror::Error;
@@ -76,9 +76,7 @@ pub trait Registry {
 /// ```
 pub trait Config {
 	/// Should return the current package version
-	fn version(&self) -> Version {
-		Version::parse(std::env::var("CARGO_PKG_VERSION").unwrap().as_str()).unwrap()
-	}
+	fn version(&self) -> Version;
 
 	/// Returns the package specific path, used by the registry
 	fn target(&self) -> String;
@@ -193,10 +191,10 @@ mod tests {
 	use semver::Version;
 	use tracing::level_filters::LevelFilter;
 	use tracing::subscriber;
-	use tracing_subscriber::prelude::*;
 	use tracing_subscriber::EnvFilter;
+	use tracing_subscriber::prelude::*;
 
-	use crate::{check_version, update_self, Config, Registry};
+	use crate::{check_version, Config, Registry, update_self};
 
 	struct LabRegistry;
 
