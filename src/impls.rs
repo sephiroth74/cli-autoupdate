@@ -19,8 +19,6 @@ pub(crate) async fn fetch_remote_version<C: Config, R: Registry>(config: &C, reg
 		.get_base_url()
 		.join(registry.get_update_path(config.into()).as_str())?;
 
-	println!("url: {}", url);
-
 	reqwest::get(url)
 		.await?
 		.json::<RemoteVersion>()
@@ -29,7 +27,7 @@ pub(crate) async fn fetch_remote_version<C: Config, R: Registry>(config: &C, reg
 }
 
 pub async fn verify_file(src: &PathBuf, required_size: u64, required_hash: String) -> crate::Result<()> {
-	println!("Verifying file integrity..");
+	tracing::debug!("Verifying file integrity..");
 	let file_size = src.as_path().metadata()?.len();
 
 	if required_size != file_size {
@@ -48,7 +46,7 @@ pub async fn verify_file(src: &PathBuf, required_size: u64, required_hash: Strin
 
 pub async fn extract(src: &PathBuf, dst: &PathBuf) -> crate::Result<()> {
 	let src_filename = src.file_name().ok_or(std::io::Error::from(ErrorKind::NotFound))?;
-	println!("Decompressing {:?} → {:?}", src_filename, dst);
+	tracing::debug!("Decompressing {:?} → {:?}", src_filename, dst);
 	let tar_gz = File::open(src)?;
 	let tar = GzDecoder::new(tar_gz);
 	let mut archive = Archive::new(tar);
@@ -113,7 +111,7 @@ pub async fn download_file(
 		pb.finish();
 	}
 
-	println!("Downloaded {} to {:?}", url, path);
+	tracing::debug!("Downloaded {} to {:?}", url, path);
 	return Ok(());
 }
 

@@ -4,9 +4,9 @@ use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 #[cfg(feature = "progress")]
-use indicatif::{MultiProgress, ProgressStyle};
-#[cfg(feature = "progress")]
 use indicatif::style::TemplateError;
+#[cfg(feature = "progress")]
+use indicatif::{MultiProgress, ProgressStyle};
 use reqwest::Url;
 use semver::Version;
 use thiserror::Error;
@@ -191,10 +191,10 @@ mod tests {
 	use semver::Version;
 	use tracing::level_filters::LevelFilter;
 	use tracing::subscriber;
-	use tracing_subscriber::EnvFilter;
 	use tracing_subscriber::prelude::*;
+	use tracing_subscriber::EnvFilter;
 
-	use crate::{check_version, Config, Registry, update_self};
+	use crate::{check_version, update_self, Config, Registry};
 
 	struct LabRegistry;
 
