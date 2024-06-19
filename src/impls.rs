@@ -68,10 +68,11 @@ pub async fn extract(src: &PathBuf, dst: &PathBuf) -> crate::Result<()> {
 	Ok(archive.unpack(dst)?)
 }
 
-pub async fn download_file(
+pub async fn download_file<R: Registry>(
 	client: &reqwest::Client,
 	url: &Url,
 	path: &PathBuf,
+	registry: &R,
 	#[cfg(feature = "progress")] multi_progress: Option<MultiProgress>,
 	#[cfg(feature = "progress")] progress_style: Option<ProgressStyle>,
 ) -> crate::Result<()> {
@@ -82,7 +83,12 @@ pub async fn download_file(
 		.last()
 		.ok_or(Error::IoError(std::io::Error::from(ErrorKind::NotFound)))?
 		.to_string();
-	let res = client.get(url.to_string().as_str()).send().await?;
+
+	let request = client.get(url.to_string());
+	let request = with_optional_basic_auth(request, registry.get_basic_auth());
+	let res = request.send().await?;
+
+	// let res = client.get(url.to_string().as_str()).send().await?;
 	let total_size = res
 		.content_length()
 		.ok_or(Error::InvalidContentLengthError(url.to_string()))?;

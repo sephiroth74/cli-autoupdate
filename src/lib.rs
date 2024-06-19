@@ -186,10 +186,10 @@ pub async fn update_self<C: Config, R: Registry>(
 		let client = reqwest::ClientBuilder::default().build().unwrap();
 
 		#[cfg(feature = "progress")]
-		let _ = impls::download_file(&client, &remote_path, &target_path, multi_progress, progress_style).await?;
+		let _ = impls::download_file(&client, &remote_path, &target_path, registry, multi_progress, progress_style).await?;
 
 		#[cfg(not(feature = "progress"))]
-		let _ = impls::download_file(&client, &remote_path, &target_path).await?;
+		let _ = impls::download_file(&client, &remote_path, &target_path, registry).await?;
 
 		let _ = impls::verify_file(&target_path, remote_version.size as u64, remote_version.checksum.clone()).await?;
 
