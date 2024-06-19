@@ -11,15 +11,30 @@ use semver::Version;
 use serde::{Deserialize, Deserializer};
 use tar::Archive;
 use url::Url;
+use reqwest::Client;
+use reqwest::RequestBuilder;
 
 use crate::{Config, Error, Registry, RemoteVersion};
+
+fn with_optional_basic_auth(request: RequestBuilder, credentials: (Option<String>, Option<String>)) -> RequestBuilder {
+    if let (Some(username), Some(password)) = credentials {
+        request.basic_auth(username, Some(password))
+    } else {
+        request
+    }
+}
 
 pub(crate) async fn fetch_remote_version<C: Config, R: Registry>(config: &C, registry: &R) -> crate::Result<RemoteVersion> {
 	let url = registry
 		.get_base_url()
 		.join(registry.get_update_path(config.into()).as_str())?;
 
-	reqwest::get(url)
+	let client = Client::new();
+	let request = client.get(url);
+	let request = with_optional_basic_auth(request, registry.get_basic_auth());
+
+	request
+		.send()
 		.await?
 		.json::<RemoteVersion>()
 		.await
@@ -53,10 +68,11 @@ pub async fn extract(src: &PathBuf, dst: &PathBuf) -> crate::Result<()> {
 	Ok(archive.unpack(dst)?)
 }
 
-pub async fn download_file(
+pub async fn download_file<R: Registry>(
 	client: &reqwest::Client,
 	url: &Url,
 	path: &PathBuf,
+	registry: &R,
 	#[cfg(feature = "progress")] multi_progress: Option<MultiProgress>,
 	#[cfg(feature = "progress")] progress_style: Option<ProgressStyle>,
 ) -> crate::Result<()> {
@@ -67,7 +83,12 @@ pub async fn download_file(
 		.last()
 		.ok_or(Error::IoError(std::io::Error::from(ErrorKind::NotFound)))?
 		.to_string();
-	let res = client.get(url.to_string().as_str()).send().await?;
+
+	let request = client.get(url.to_string());
+	let request = with_optional_basic_auth(request, registry.get_basic_auth());
+	let res = request.send().await?;
+
+	// let res = client.get(url.to_string().as_str()).send().await?;
 	let total_size = res
 		.content_length()
 		.ok_or(Error::InvalidContentLengthError(url.to_string()))?;
