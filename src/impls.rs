@@ -11,15 +11,30 @@ use semver::Version;
 use serde::{Deserialize, Deserializer};
 use tar::Archive;
 use url::Url;
+use reqwest::Client;
+use reqwest::RequestBuilder;
 
 use crate::{Config, Error, Registry, RemoteVersion};
+
+fn with_optional_basic_auth(request: RequestBuilder, credentials: (Option<String>, Option<String>)) -> RequestBuilder {
+    if let (Some(username), Some(password)) = credentials {
+        request.basic_auth(username, Some(password))
+    } else {
+        request
+    }
+}
 
 pub(crate) async fn fetch_remote_version<C: Config, R: Registry>(config: &C, registry: &R) -> crate::Result<RemoteVersion> {
 	let url = registry
 		.get_base_url()
 		.join(registry.get_update_path(config.into()).as_str())?;
 
-	reqwest::get(url)
+	let client = Client::new();
+	let request = client.get(url);
+	let request = with_optional_basic_auth(request, registry.get_basic_auth());
+
+	request
+		.send()
 		.await?
 		.json::<RemoteVersion>()
 		.await

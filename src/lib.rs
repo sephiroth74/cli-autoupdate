@@ -41,10 +41,26 @@ pub enum Error {
 	InvalidFileChecksum,
 }
 
-///
 /// This trait is responsible to gives the base url for and the final path
 /// of the update json package description
 ///
+/// Eg:
+/// ```rust
+///     use cli_autoupdate::{Config, Registry};
+
+/// 	struct MyRegistry
+///     impl Registry for MyRegistry {
+/// 		fn get_base_url(&self) -> Url {
+/// 			Url::parse("https://registry.example/").unwrap()
+///			}
+/// 		fn get_update_path<C: Config>(&self, config: &C) -> String {
+///				format!("{}.json", config.target())
+///			}
+/// 		fn get_basic_auth(&self) -> (Option<String>, Option<String>) {
+/// 			(None, None)
+/// 		}
+/// 	}
+/// ```
 pub trait Registry {
 	/// base url of the repository. This is also used together with the `RemoteVersion::path`
 	/// to create the final download url.
@@ -52,6 +68,9 @@ pub trait Registry {
 
 	/// This is the relative update json path, according to the configuration path.
 	fn get_update_path<C: Config>(&self, config: &C) -> String;
+
+	// Basic HTTP authentication (username, password)
+	fn get_basic_auth(&self) -> (Option<String>, Option<String>);
 }
 
 /// Configuration implementation for the current package
