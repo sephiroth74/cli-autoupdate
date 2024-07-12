@@ -56,7 +56,7 @@ pub enum Error {
 /// 		fn get_update_path<C: Config>(&self, config: &C) -> String {
 ///    			format!("{}.json", config.target())
 ///    		}
-/// 		fn get_basic_auth(&self) -> Option<(String, String)> {
+/// 		fn get_basic_auth(&self) -> Option<(String, Option<String>)> {
 /// 			None
 /// 		}
 /// 	}
